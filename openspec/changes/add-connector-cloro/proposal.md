@@ -75,9 +75,8 @@ covers. No new engine capability is necessary.
     cloro's `{error: {code, message}}` blob, so the provider `fromError`
     digests it. cloro charges a FAILED task 0.
   - The `runId` idempotency key makes a retried submit a 409, not a second
-    charged task. On that 409 (`error.details.field` is `idempotencyKey`),
-    `start` parks RUNNING with the run id as `externalRunId`: cloro's
-    status endpoint also finds a task by its idempotencyKey.
+    charged task. cloro finds a task by its id only, so that 409 is
+    returned as an error, settled at zero.
   - There is no `stop`: cloro cannot cancel one task, only clear the queue
     of the whole organization.
   - The card is the sync card without the 2-credit sync surcharge:
@@ -88,8 +87,7 @@ covers. No new engine capability is necessary.
 - **Errors.** A provider `output.fromError` digests
   `{error: {code, message}}` into `{message, code?, raw}`.
 - Synthetic provider-level fixtures (`synthetic-answer`,
-  `synthetic-unauthorized`, `async-completed`, `async-failed`,
-  `async-resubmitted`) for the
+  `synthetic-unauthorized`, `async-completed`, `async-failed`) for the
   billing and lifecycle cases, plus real recordings for
   `google` and `chatgpt`. The recorded `X-Credits-Charged` (5 and 7) equals
   the card.

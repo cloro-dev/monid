@@ -107,12 +107,6 @@ declared on the endpoints. The card SHALL be the sync card without the
   `{credits: {}, evidence: {}}`, and the output digests cloro's
   `{error: {code, message}}`
 
-#### Scenario: A retried submit finds the first task
-- **WHEN** the submit answers 409 with `error.details.field`
-  `idempotencyKey`
-- **THEN** `start` returns RUNNING with `externalRunId` set to the run id,
-  and the poll reads `GET /async/task/{runId}`
-
 #### Scenario: One poll for all twins
 - **WHEN** the bundle is compiled
 - **THEN** the 7 async docs carry one `lifecycle.poll` key, 7

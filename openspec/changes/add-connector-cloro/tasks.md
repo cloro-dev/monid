@@ -46,7 +46,4 @@
 - [x] 5.4 `async-completed` and `async-failed` chains; `async.test.ts`:
       claim, mismatch, malformed claims, FAILED, rejected submit, the card
       per endpoint, estimates, interning
-- [x] 5.4a `async-resubmitted` chain: a 409 on the idempotencyKey polls the
-      task by the run id (needs cloro backend: fetch a task by its
-      idempotencyKey)
 - [ ] 5.5 Live test `cloro#async/google` (gated on `CLORO_API_KEY`)

@@ -1,10 +1,9 @@
-import { assert, assertEquals } from "@std/assert";
+import { assertEquals } from "@std/assert";
 import { fromFileUrl } from "@std/path";
-import { type Json, RunKind } from "@shared/core";
+import type { Json } from "@shared/core";
 import {
     estimateEndpoint,
     liveSkip,
-    loadEndpoint,
     loadFixture,
     runEndpoint,
     testBundle,
@@ -128,25 +127,6 @@ Deno.test("cloro async: a rejected submit is digested and settled at zero", asyn
         code: "INVALID_OR_EXPIRED_API_KEY",
         raw: fixture.calls[0].res.body,
     });
-});
-
-Deno.test("cloro async: a retried submit polls the task by the run id", async () => {
-    const input = { body: { prompt: "p", country: "US" } };
-    const loaded = await loadEndpoint({
-        unit: await testSealedUnit(CHATGPT),
-        input,
-        mode: "replay",
-        fixture: await loadFixture(chain("async-resubmitted")),
-    });
-    // the run id is the idempotencyKey an earlier attempt sent
-    const run = { runId: "run-1" };
-    const started = await loaded.start(input, run);
-    assert(started.kind === RunKind.RUNNING, "a 409 on the key parks RUNNING");
-    assertEquals(started.state.externalRunId, "run-1");
-    const polled = await loaded.poll(input, started.state, run);
-    assert(polled.kind === RunKind.COMPLETED);
-    assertEquals(polled.httpStatus, 200);
-    assertEquals(polled.usage.credits, { default: 5 });
 });
 
 // The async card, per endpoint, with no claim: the sync card minus the

@@ -34,7 +34,8 @@ export default defineEndpoint({
     lifecycle: {
         start: async ({ data, utils }) => {
             // runId is stable across activity retries, so a retried submit
-            // gets a 409 instead of a second charged task
+            // gets a 409 instead of a second charged task. cloro finds a
+            // task by its id only, so the 409 is returned as an error.
             const response = await utils.request({
                 body: {
                     taskType: "GEMINI",
@@ -42,22 +43,6 @@ export default defineEndpoint({
                     idempotencyKey: data.run.runId,
                 },
             });
-            if (
-                response.status === 409 &&
-                utils.json.optionalGet(
-                        response.body,
-                        "$.error.details.field",
-                    ) ===
-                    "idempotencyKey"
-            ) {
-                // an earlier attempt of this run created the task, and its
-                // response was lost. cloro also finds a task by its
-                // idempotencyKey, so the poll uses the run id.
-                return {
-                    kind: "RUNNING",
-                    state: { externalRunId: data.run.runId },
-                };
-            }
             if (response.status < 200 || response.status >= 300) {
                 return {
                     kind: "COMPLETED",

@@ -51,7 +51,7 @@ export default defineEndpoint({
             const response = await utils.request({
                 body: {
                     taskType: "AIMODE",
-                    payload: data.input.body ?? {},
+                    payload: data.input.body,
                     idempotencyKey: data.run.runId,
                 },
             });

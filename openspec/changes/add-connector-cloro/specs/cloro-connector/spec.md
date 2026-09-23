@@ -33,8 +33,8 @@ into `{message, code?, raw}`.
 - **THEN** `isProviderError` is true, usage is
   `{credits: {}, evidence: {}}`, and the output is `{message, code, raw}`
 
-### Requirement: Each endpoint states cloro's rate card
-Each endpoint SHALL declare a COMPOSITE model whose `call` line is the base
+### Requirement: Each monitor endpoint states cloro's rate card
+Each `cloro#monitor/*` endpoint SHALL declare a COMPOSITE model whose `call` line is the base
 credits plus 2 (sync surcharge): ChatGPT 7, Copilot 7, Gemini 6,
 Perplexity 6, AI Mode 6, Google 5, Google News 5. The add-on lines SHALL be
 counted by estimate and evidence as cloro's `calculateCredits` counts them.
@@ -73,12 +73,13 @@ optionality only, as a strict object, because cloro rejects unknown fields.
 
 ### Requirement: Shared fns intern
 The lifecycle relay, the claim and the error digest SHALL intern to one
-fnTable entry each across the 7 docs, and the three endpoints whose only
+fnTable entry each across the 7 `cloro#monitor/*` docs, and the three
+endpoints whose only
 add-on is state targeting SHALL share one estimate entry.
 
 #### Scenario: One entry per shared fn
 - **WHEN** the bundle is compiled
-- **THEN** the cloro docs carry one distinct key each for
+- **THEN** the `cloro#monitor/*` docs carry one distinct key each for
   `lifecycle.start`, `usage.consolidate` and `output.fromError`
 
 ### Requirement: Async twins poll cloro tasks

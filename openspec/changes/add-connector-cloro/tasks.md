@@ -43,7 +43,7 @@
       `start` + `poll`, the sync input schemas, and the card without the
       surcharge
 - [x] 5.3 Add the 7 `cloro#async/*` ids to `connectors/ids.lock.json`
-- [x] 5.4 `async-completed` and `async-failed` chains; `async.test.ts`:
+- [x] 5.4 `synthetic-async-completed` and `synthetic-async-failed` chains; `async.test.ts`:
       claim, mismatch, malformed claims, FAILED, rejected submit, the card
       per endpoint, estimates, interning
 - [x] 5.5 Live test `cloro#async/google` (gated on `CLORO_API_KEY`): the

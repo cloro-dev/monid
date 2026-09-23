@@ -87,7 +87,7 @@ covers. No new engine capability is necessary.
 - **Errors.** A provider `output.fromError` digests
   `{error: {code, message}}` into `{message, code?, raw}`.
 - Synthetic provider-level fixtures (`synthetic-answer`,
-  `synthetic-unauthorized`, `async-completed`, `async-failed`) for the
+  `synthetic-unauthorized`, `synthetic-async-completed`, `synthetic-async-failed`) for the
   billing and lifecycle cases, plus real recordings for
   `google` and `chatgpt`. The recorded `X-Credits-Charged` (5 and 7) equals
   the card.

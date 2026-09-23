@@ -36,7 +36,7 @@ export default defineEndpoint({
             const response = await utils.request({
                 body: {
                     taskType: "COPILOT",
-                    payload: data.input.body ?? {},
+                    payload: data.input.body,
                     idempotencyKey: data.run.runId,
                 },
             });

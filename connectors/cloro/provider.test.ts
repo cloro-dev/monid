@@ -287,10 +287,10 @@ Deno.test("cloro input: localization is required before the wire", async () => {
     }
 });
 
-Deno.test("cloro: every endpoint shares the meter relay, the claim and the error digest", async () => {
+Deno.test("cloro: every monitor endpoint shares the meter relay, the claim and the error digest", async () => {
     const bundle = await testBundle();
     const docs = Object.values(bundle.endpoints).filter((doc) =>
-        doc.id.startsWith("cloro#")
+        doc.id.startsWith("cloro#monitor/")
     );
     assertEquals(docs.length, 7);
     const keys = (pick: (doc: typeof docs[number]) => unknown) =>

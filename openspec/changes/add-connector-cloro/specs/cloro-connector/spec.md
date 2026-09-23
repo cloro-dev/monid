@@ -80,3 +80,40 @@ add-on is state targeting SHALL share one estimate entry.
 - **WHEN** the bundle is compiled
 - **THEN** the cloro docs carry one distinct key each for
   `lifecycle.start`, `usage.consolidate` and `output.fromError`
+
+### Requirement: Async twins poll cloro tasks
+Each sync endpoint SHALL have an async twin `cloro#async/<engine>` that
+submits `POST /async/task` with `{taskType, payload, idempotencyKey}`, where
+`payload` is validated by the schema of the sync twin and `idempotencyKey` is
+the run id, and polls `GET /async/task/{id}`. The lifecycle SHALL be
+declared on the endpoints. The card SHALL be the sync card without the
+2-credit sync surcharge.
+
+#### Scenario: A completed task settles on the body claim
+- **WHEN** `cloro#async/chatgpt` polls a COMPLETED task with
+  `credits.creditsCharged: 9` for a request with `include.shopping` and
+  `state`
+- **THEN** the output is `{success: true, result}` and usage is
+  `{credits: {default: 9}, evidence: {call: 1, raw_data: 1,
+  state_targeting: 1}}`
+
+#### Scenario: A transient status lookup keeps the run alive
+- **WHEN** the status lookup answers 408, 429 or 5xx
+- **THEN** the poll returns RUNNING with `pollAfterMs` 15000
+
+#### Scenario: A failed task is a provider error
+- **WHEN** the task status is FAILED
+- **THEN** `httpStatus` is 500, `isProviderError` is true, usage is
+  `{credits: {}, evidence: {}}`, and the output digests cloro's
+  `{error: {code, message}}`
+
+#### Scenario: A retried submit finds the first task
+- **WHEN** the submit answers 409 with `error.details.field`
+  `idempotencyKey`
+- **THEN** `start` returns RUNNING with `externalRunId` set to the run id,
+  and the poll reads `GET /async/task/{runId}`
+
+#### Scenario: One poll for all twins
+- **WHEN** the bundle is compiled
+- **THEN** the 7 async docs carry one `lifecycle.poll` key, 7
+  `lifecycle.start` keys and no `lifecycle.stop`

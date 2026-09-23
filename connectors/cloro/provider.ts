@@ -3,9 +3,11 @@ import { z } from "zod";
 
 /**
  * cloro (cloro.dev) — structured scrapes of AI assistants and Google
- * search surfaces. Seven synchronous JSON endpoints on ONE wire surface:
- * `POST https://api.cloro.dev/v1/monitor/<engine>`, Bearer auth. Each
- * answers `{ success: true, result: {...} }`.
+ * search surfaces, Bearer auth. Seven synchronous JSON endpoints,
+ * `POST https://api.cloro.dev/v1/monitor/<engine>`, each answering
+ * `{ success: true, result: {...} }`. Seven async twins on
+ * `POST /v1/async/task` + `GET /v1/async/task/{id}`, which author their
+ * own lifecycle (see endpoints/async-chatgpt) and return the same shape.
  *
  * BILLING. cloro bills one pool of credits per organization. A sync
  * request costs the engine's base credits, plus a flat 2-credit sync
@@ -15,13 +17,15 @@ import { z } from "zod";
  * `call` line (base + sync surcharge) and one PER_UNIT line per add-on.
  * Rate card: https://cloro.dev/docs/guides/providers (checked 2026-09-21).
  *
- * The actual charge is the vendor claim (design D27): every 200 carries
- * `X-Credits-Charged`, the credits cloro took for the request, AI Mode
- * product adjustments and per-organization overrides included. A sync
+ * The actual charge is the vendor claim (design D27): every sync 200
+ * carries `X-Credits-Charged`, the credits cloro took for the request, AI
+ * Mode product adjustments and per-organization overrides included. A sync
  * lifecycle relay (the ahrefs pattern) carries it into state for
- * usage.consolidate. A missing or malformed header falls back to the
- * rate card. Non-2xx responses are not charged by cloro, and the engine
- * settles them at zero.
+ * usage.consolidate. The async endpoints read the same claim from the
+ * status body (`credits.creditsCharged`) into the same state field, and
+ * their card has no sync surcharge. A missing or malformed claim falls
+ * back to the rate card. Non-2xx responses and FAILED tasks are not
+ * charged by cloro, and the engine settles them at zero.
  */
 export default defineProvider({
     name: "cloro",
@@ -41,12 +45,14 @@ export default defineProvider({
         docsUrl: "https://cloro.dev/docs",
         categories: ["ai-search", "geo", "seo"],
         notes: [
-            "Billed in cloro credits: the endpoint's base credits plus a " +
-            "2-credit sync surcharge, plus the add-ons the request turns " +
-            "on. The X-Credits-Charged response header settles the bill; " +
-            "without it, settlement falls back to the published rate card.",
-            "Requests are synchronous and can take up to a few minutes on " +
-            "the AI assistant engines.",
+            "Billed in cloro credits: the endpoint's base credits, plus a " +
+            "2-credit surcharge on the sync monitor endpoints, plus the " +
+            "add-ons the request turns on. cloro's own credit claim " +
+            "settles the bill; without it, settlement falls back to the " +
+            "published rate card.",
+            "The monitor endpoints are synchronous and can take up to a " +
+            "few minutes on the AI assistant engines. The async endpoints " +
+            "queue a cloro task and poll it until it completes.",
         ],
     },
     auth: { inject: presets.auth.bearer() },

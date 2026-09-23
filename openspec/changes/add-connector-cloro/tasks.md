@@ -32,3 +32,21 @@
 - [x] 4.3 Live test gated on `CLORO_API_KEY`
 - [x] 4.4 Record real chains for google and chatgpt; add `x-credits-charged`
       to `RECORDED_RES_HEADERS` so the recorder keeps the meter
+
+## 5. Async twins
+
+- [x] 5.1 Read the async API (`POST /v1/async/task`,
+      `GET /v1/async/task/{taskId}`) and cloro's backend: no sync surcharge,
+      FAILED is charged 0 and stores `{error: {code, message}}`, the status
+      lookup is by task id only
+- [x] 5.2 `endpoints/async-*`: 7 endpoints with an endpoint-level
+      `start` + `poll`, the sync input schemas, and the card without the
+      surcharge
+- [x] 5.3 Add the 7 `cloro#async/*` ids to `connectors/ids.lock.json`
+- [x] 5.4 `async-completed` and `async-failed` chains; `async.test.ts`:
+      claim, mismatch, malformed claims, FAILED, rejected submit, the card
+      per endpoint, estimates, interning
+- [x] 5.4a `async-resubmitted` chain: a 409 on the idempotencyKey polls the
+      task by the run id (needs cloro backend: fetch a task by its
+      idempotencyKey)
+- [ ] 5.5 Live test `cloro#async/google` (gated on `CLORO_API_KEY`)

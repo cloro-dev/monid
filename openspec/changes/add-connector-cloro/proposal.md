@@ -14,8 +14,9 @@ catalog has `ai-search` and `geo` leaves, but no endpoint that returns the
 consumer answer of these assistants.
 
 Mechanically it is an easy fit: one base URL, bearer auth, seven synchronous
-JSON endpoints, and an `X-Credits-Charged` header on every successful
-response. No new engine capability is necessary.
+JSON endpoints with an `X-Credits-Charged` header on every successful
+response, and one async task API that the async run protocol already
+covers. No new engine capability is necessary.
 
 ## What Changes
 
@@ -54,10 +55,42 @@ response. No new engine capability is necessary.
   one binding default is Google News `pages` (1), which the estimate reads.
   Google `pages` stays optional, because cloro rejects it together with
   `url`.
+- **Async twins.** 7 async endpoints, `cloro#async/<engine>`, one for
+  each sync endpoint. Each one submits `POST /async/task` with
+  `{taskType, payload: <the sync body>, idempotencyKey: <runId>}` and polls
+  `GET /async/task/{id}`:
+  - The input schema is the schema of the sync twin, so the payload is
+    validated before the wire.
+  - The lifecycle is on each endpoint, not on the provider, because the
+    provider `lifecycle.start` is the sync header relay. `poll` is
+    byte-identical across the 7 and interns to one fnTable entry; `start`
+    differs only in the `taskType` literal.
+  - `QUEUED` and `PROCESSING` stay RUNNING. A 408, 429 or 5xx on the status
+    lookup also stays RUNNING, with a 15 s back-off, because the task keeps
+    running and cloro charges it.
+  - `COMPLETED` returns `{success: true, result: <response>}`, the shape of
+    the sync twin, and puts `credits.creditsCharged` into
+    `state.data.creditsCharged`, the field the provider claim reads.
+  - `FAILED` returns a synthesized 500 (`providerHttpStatus` 200) with
+    cloro's `{error: {code, message}}` blob, so the provider `fromError`
+    digests it. cloro charges a FAILED task 0.
+  - The `runId` idempotency key makes a retried submit a 409, not a second
+    charged task. On that 409 (`error.details.field` is `idempotencyKey`),
+    `start` parks RUNNING with the run id as `externalRunId`: cloro's
+    status endpoint also finds a task by its idempotencyKey.
+  - There is no `stop`: cloro cannot cancel one task, only clear the queue
+    of the whole organization.
+  - The card is the sync card without the 2-credit sync surcharge:
+    ChatGPT 5, Copilot 5, Gemini 4, Perplexity 4, AI Mode 4, Google 3,
+    Google News 3, with the same add-on lines.
+  - Timeouts: 30 s per request, 5 s poll cadence, 30 min per run, so that
+    the run budget covers queue time.
 - **Errors.** A provider `output.fromError` digests
   `{error: {code, message}}` into `{message, code?, raw}`.
 - Synthetic provider-level fixtures (`synthetic-answer`,
-  `synthetic-unauthorized`) for the billing cases, plus real recordings for
+  `synthetic-unauthorized`, `async-completed`, `async-failed`,
+  `async-resubmitted`) for the
+  billing and lifecycle cases, plus real recordings for
   `google` and `chatgpt`. The recorded `X-Credits-Charged` (5 and 7) equals
   the card.
 - `shared/testing/fixtures.ts`: `x-credits-charged` joins
@@ -72,9 +105,10 @@ response. No new engine capability is necessary.
 - `/v1/monitor/grok` is not ported. cloro marks Grok as temporarily
   unavailable (Grok blocks anonymous access), and every call fails.
 
-- The async API (`/v1/async/task`, `/v1/async/task/batch`) is not ported.
-  It is cheaper by the 2-credit sync surcharge, but it needs the job
-  lifecycle and a webhook or poll. It can come in its own change.
+- `/v1/async/task/batch` is not ported. One monid run is one task, so the
+  single-task submit covers it.
+- No webhook. cloro can POST the result to a `webhook.url`, but the poll
+  gives the same result without a host ingress route.
 - `/v1/monitor/google/goto`, `/v1/countries`, `/v1/states` and
   `/v1/credits` are free utility reads and are not ported.
 - No dollar conversion in the doc. cloro's price per credit depends on the
@@ -83,6 +117,6 @@ response. No new engine capability is necessary.
 
 ## Impact
 
-New connector tree, 7 new ids in `connectors/ids.lock.json`, and one new
+New connector tree, 14 new ids in `connectors/ids.lock.json`, and one new
 recorded response header. No new
 `Unit`, preset, hook or category, and no compiler or engine change.

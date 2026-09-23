@@ -46,4 +46,5 @@
 - [x] 5.4 `async-completed` and `async-failed` chains; `async.test.ts`:
       claim, mismatch, malformed claims, FAILED, rejected submit, the card
       per endpoint, estimates, interning
-- [ ] 5.5 Live test `cloro#async/google` (gated on `CLORO_API_KEY`)
+- [x] 5.5 Live test `cloro#async/google` (gated on `CLORO_API_KEY`): the
+      claim equals the card (3)

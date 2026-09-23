@@ -1,9 +1,10 @@
-import { assertEquals, assertRejects } from "@std/assert";
+import { assert, assertEquals, assertRejects } from "@std/assert";
 import { fromFileUrl } from "@std/path";
-import type { Json } from "@shared/core";
+import { type Json, RunKind } from "@shared/core";
 import {
     estimateEndpoint,
     liveSkip,
+    loadEndpoint,
     loadFixture,
     runEndpoint,
     testBundle,
@@ -287,15 +288,32 @@ Deno.test("cloro input: localization is required before the wire", async () => {
     }
 });
 
-Deno.test("cloro: every monitor endpoint shares the meter relay, the claim and the error digest", async () => {
+// Run mode by measured latency (2026-09-22 drill, 2026-09-23 run): the
+// fast engines stay sync, the slow assistants run async on monid's side.
+const SYNC = ["google", "google/news", "aimode"];
+const ASYNC = ["chatgpt", "gemini", "copilot", "perplexity"];
+
+Deno.test("cloro: every endpoint shares the meter relay, the claim and the error digest", async () => {
     const bundle = await testBundle();
     const docs = Object.values(bundle.endpoints).filter((doc) =>
-        doc.id.startsWith("cloro#monitor/")
+        doc.id.startsWith("cloro#")
     );
     assertEquals(docs.length, 7);
     const keys = (pick: (doc: typeof docs[number]) => unknown) =>
         new Set(docs.map(pick)).size;
-    assertEquals(keys((doc) => doc.lifecycle?.start?.$fn.key), 1);
+    const doc = (engine: string) => bundle.endpoints[`cloro#monitor/${engine}`];
+    const relay = doc("google").lifecycle?.start?.$fn.key;
+    for (const engine of SYNC) {
+        // the provider relay makes the call in start; nothing to poll
+        assertEquals(doc(engine).lifecycle?.start?.$fn.key, relay, engine);
+        assertEquals(doc(engine).lifecycle?.poll, undefined, engine);
+    }
+    const ack = doc("chatgpt").lifecycle?.start?.$fn.key;
+    for (const engine of ASYNC) {
+        // start acknowledges, the poll is the same relay
+        assertEquals(doc(engine).lifecycle?.start?.$fn.key, ack, engine);
+        assertEquals(doc(engine).lifecycle?.poll?.$fn.key, relay, engine);
+    }
     assertEquals(keys((doc) => doc.usage.consolidate?.$fn.key), 1);
     assertEquals(keys((doc) => doc.output?.fromError?.$fn.key), 1);
     // the three assistant engines without add-ons intern to one estimate
@@ -308,6 +326,25 @@ Deno.test("cloro: every monitor endpoint shares the meter relay, the claim and t
         new Set(plain.map((doc) => doc.usage.estimate.$fn.key)).size,
         1,
     );
+});
+
+Deno.test("cloro run mode: an async engine is acknowledged, then one poll makes the call", async () => {
+    const input = { body: CHATGPT_BODY };
+    const fixture = await loadFixture(ANSWER);
+    fixture.calls[0].res.headers = { [METER]: "11" };
+    const loaded = await loadEndpoint({
+        unit: await testSealedUnit(CHATGPT),
+        input,
+        mode: "replay",
+        fixture,
+    });
+    // start does no IO: the chain's one call is still unused after it
+    const started = await loaded.start(input);
+    assert(started.kind === RunKind.RUNNING, "start acknowledges the run");
+    const polled = await loaded.poll(input, started.state);
+    assert(polled.kind === RunKind.COMPLETED, "one poll completes it");
+    assertEquals(polled.httpStatus, 200);
+    assertEquals(polled.usage.credits, { default: 11 });
 });
 
 Deno.test({

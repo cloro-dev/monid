@@ -33,8 +33,8 @@ into `{message, code?, raw}`.
 - **THEN** `isProviderError` is true, usage is
   `{credits: {}, evidence: {}}`, and the output is `{message, code, raw}`
 
-### Requirement: Each monitor endpoint states cloro's rate card
-Each `cloro#monitor/*` endpoint SHALL declare a COMPOSITE model whose `call` line is the base
+### Requirement: Each endpoint states cloro's rate card
+Each endpoint SHALL declare a COMPOSITE model whose `call` line is the base
 credits plus 2 (sync surcharge): ChatGPT 7, Copilot 7, Gemini 6,
 Perplexity 6, AI Mode 6, Google 5, Google News 5. The add-on lines SHALL be
 counted by estimate and evidence as cloro's `calculateCredits` counts them.
@@ -73,42 +73,29 @@ optionality only, as a strict object, because cloro rejects unknown fields.
 
 ### Requirement: Shared fns intern
 The lifecycle relay, the claim and the error digest SHALL intern to one
-fnTable entry each across the 7 `cloro#monitor/*` docs, and the three
-endpoints whose only
+fnTable entry each across the 7 docs, and the three endpoints whose only
 add-on is state targeting SHALL share one estimate entry.
 
 #### Scenario: One entry per shared fn
 - **WHEN** the bundle is compiled
-- **THEN** the `cloro#monitor/*` docs carry one distinct key each for
-  `lifecycle.start`, `usage.consolidate` and `output.fromError`
+- **THEN** the cloro docs carry one distinct key each for
+  `usage.consolidate` and `output.fromError`, and the relay is one key (see
+  the run-mode requirement)
 
-### Requirement: Async twins poll cloro tasks
-Each sync endpoint SHALL have an async twin `cloro#async/<engine>` that
-submits `POST /async/task` with `{taskType, payload, idempotencyKey}`, where
-`payload` is validated by the schema of the sync twin and `idempotencyKey` is
-the run id, and polls `GET /async/task/{id}`. The lifecycle SHALL be
-declared on the endpoints. The card SHALL be the sync card without the
-2-credit sync surcharge.
+### Requirement: Run mode follows measured latency
+`cloro#monitor/google`, `cloro#monitor/google/news` and
+`cloro#monitor/aimode` SHALL run sync, with no `lifecycle.poll`.
+`cloro#monitor/chatgpt`, `cloro#monitor/gemini`, `cloro#monitor/copilot`
+and `cloro#monitor/perplexity` SHALL run async: an endpoint
+`lifecycle.start` that returns RUNNING with no IO, and a `lifecycle.poll`
+that is the provider relay and makes the single `/v1/monitor/*` call.
 
-#### Scenario: A completed task settles on the body claim
-- **WHEN** `cloro#async/chatgpt` polls a COMPLETED task with
-  `credits.creditsCharged: 9` for a request with `include.shopping` and
-  `state`
-- **THEN** the output is `{success: true, result}` and usage is
-  `{credits: {default: 9}, evidence: {call: 1, raw_data: 1,
-  state_targeting: 1}}`
+#### Scenario: An async engine is acknowledged, then polled once
+- **WHEN** `cloro#monitor/chatgpt` runs
+- **THEN** `start` returns RUNNING without a vendor call, and the first
+  `poll` makes the call and completes on the `X-Credits-Charged` claim
 
-#### Scenario: A transient status lookup keeps the run alive
-- **WHEN** the status lookup answers 408, 429 or 5xx
-- **THEN** the poll returns RUNNING with `pollAfterMs` 15000
-
-#### Scenario: A failed task is a provider error
-- **WHEN** the task status is FAILED
-- **THEN** `httpStatus` is 500, `isProviderError` is true, usage is
-  `{credits: {}, evidence: {}}`, and the output digests cloro's
-  `{error: {code, message}}`
-
-#### Scenario: One poll for all twins
+#### Scenario: The poll is the relay
 - **WHEN** the bundle is compiled
-- **THEN** the 7 async docs carry one `lifecycle.poll` key, 7
-  `lifecycle.start` keys and no `lifecycle.stop`
+- **THEN** the four async docs share one `lifecycle.start` key, and their
+  `lifecycle.poll` key is the `lifecycle.start` key of the sync docs

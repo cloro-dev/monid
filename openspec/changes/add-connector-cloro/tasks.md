@@ -33,18 +33,11 @@
 - [x] 4.4 Record real chains for google and chatgpt; add `x-credits-charged`
       to `RECORDED_RES_HEADERS` so the recorder keeps the meter
 
-## 5. Async twins
+## 5. Run mode
 
-- [x] 5.1 Read the async API (`POST /v1/async/task`,
-      `GET /v1/async/task/{taskId}`) and cloro's backend: no sync surcharge,
-      FAILED is charged 0 and stores `{error: {code, message}}`, the status
-      lookup is by task id only
-- [x] 5.2 `endpoints/async-*`: 7 endpoints with an endpoint-level
-      `start` + `poll`, the sync input schemas, and the card without the
-      surcharge
-- [x] 5.3 Add the 7 `cloro#async/*` ids to `connectors/ids.lock.json`
-- [x] 5.4 `synthetic-async-completed` and `synthetic-async-failed` chains; `async.test.ts`:
-      claim, mismatch, malformed claims, FAILED, rejected submit, the card
-      per endpoint, estimates, interning
-- [x] 5.5 Live test `cloro#async/google` (gated on `CLORO_API_KEY`): the
-      claim equals the card (3)
+- [x] 5.1 Set sync or async per endpoint by the measured latency (review
+      on the PR): Google, Google News and AI Mode sync; ChatGPT, Gemini,
+      Copilot and Perplexity async, with an acknowledging `start` and the
+      relay as `poll`
+- [x] 5.2 Tests: the run-mode split, and a chatgpt run that is RUNNING after
+      `start` and completes on one poll
